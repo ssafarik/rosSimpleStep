@@ -1,0 +1,20 @@
+<package>
+  <description brief="rosSimpleStep">
+
+     rosSimpleStep
+
+  </description>
+  <author>Steve Safarik</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/rosSimpleStep</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="sensor_msgs"/>
+  <depend package="ros_flydra"/>
+  <depend package="floris_ros_flydra"/>
+  <depend package="joystick_ps3"/>
+</package>
+
+
