@@ -1,9 +1,0 @@
-string id
-bool units
-int32 countsPerRev
-float32 velMax
-float32 velMin
-float32 latency
-float32 limitHigh
-float32 limitLow
-time time
