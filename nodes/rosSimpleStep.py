@@ -45,6 +45,39 @@ import string
 #PRM:97:   boot program                             .
 #PRM:202:  filter cutoff              100.0         500.0
 
+#PRM:#     Parameter                  Value         Default 
+#----------------------------------------------------------------
+#PRM:0:    KP                         4537740       750000
+#PRM:1:    KI                         84154         35000
+#PRM:2:    KPOS                       1729          15000
+#PRM:11:   integral clamp             500           5000
+#PRM:20:   operating mode             5             4
+#PRM:26:   lowpass filter             1             0
+#PRM:90:   baud rate                  38400         9600
+#PRM:95:   daisy chain                1             0
+#PRM:101:  fault output               1             0
+#PRM:202:  filter cutoff              100.0         500.0
+#PRM:204:  autotune distance          500.0         32000.0
+#PRM:205:  autotune bandwidth         7.0           20.0
+#
+#ssafarik@flappy:~/pybai/BAI$ python cmd_line.py -a B -b 38400 read-param nondefault
+#
+#PRM:#     Parameter                  Value         Default 
+#----------------------------------------------------------------
+#PRM:0:    KP                         4537740       750000
+#PRM:1:    KI                         84154         35000
+#PRM:2:    KPOS                       1729          15000
+#PRM:11:   integral clamp             500           5000
+#PRM:20:   operating mode             5             4
+#PRM:26:   lowpass filter             1             0
+#PRM:90:   baud rate                  38400         9600
+#PRM:94:   unit address               B             A
+#PRM:95:   daisy chain                1             0
+#PRM:101:  fault output               1             0
+#PRM:202:  filter cutoff              100.0         500.0
+#PRM:204:  autotune distance          500.0         32000.0
+#PRM:205:  autotune bandwidth         7.0           20.0
+
 
 # Integer values for operating modes - used in usb set/get
 #VELOCITY_MODE = 0
