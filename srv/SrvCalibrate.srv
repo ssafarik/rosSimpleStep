@@ -1,0 +1,5 @@
+int32 direction
+float32 posOrigin
+float32 posPark
+---
+float32 position

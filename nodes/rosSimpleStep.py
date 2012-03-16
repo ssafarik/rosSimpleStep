@@ -2,16 +2,13 @@
 from __future__ import division
 import roslib; roslib.load_manifest('rosSimpleStep')
 import rospy
+import string
+import numpy as N
 from std_msgs.msg import *
-#from ros_flydra.msg import *
-from actuator_msgs.msg import msgActuatorParameters, msgSetPositionMode, msgSetVelocityMode
-from actuator_msgs.srv import srvCalibrate, srvState, srvPark, srvSetZero, srvJointState, srvJointStateResponse
+from rosSimpleStep.srv import SrvCalibrate, SrvJointState, SrvJointStateResponse, SrvPark, SrvSetZero
 from sensor_msgs.msg import JointState
 import simple_step
-#import time
-import numpy as N
 from optparse import OptionParser
-import string
 
 # The following settings are the best I've found for the BAI controller with the Fivebar mechanism.
 # Unlisted parameters are set to their default.
@@ -77,19 +74,17 @@ class RosSimpleStep:
         
         # Messages and Services
         #rospy.loginfo ("Offering services %s, %s, %s, %s, %s, %s" % ('srvCalibrate_'+self.name,'srvSetPosition_'+self.name,'srvSetVelocity_'+self.name,'srvGetState_'+self.name,'srvPark_'+self.name,'srvSetZero_'+self.name))
-        rospy.Service('srvCalibrate_'+self.name,        srvCalibrate,   self.Calibrate_callback)
-        rospy.Service('srvSetPosition_'+self.name,      srvJointState,  self.SetPosition_callback)
-        rospy.Service('srvSetVelocity_'+self.name,      srvJointState,  self.SetVelocity_callback)
-        rospy.Service('srvSetPositionAtVel_'+self.name, srvJointState,  self.SetPositionAtVel_callback)
-        rospy.Service('srvGetState_'+self.name,         srvJointState,  self.GetState_callback)
-        rospy.Service('srvPark_'+self.name,             srvPark,        self.Park_callback)
-        rospy.Service('srvSetZero_'+self.name,          srvSetZero,     self.SetZero_callback)
+        rospy.Service('srvCalibrate_'+self.name,        SrvCalibrate,   self.Calibrate_callback)
+        rospy.Service('srvSetPosition_'+self.name,      SrvJointState,  self.SetPosition_callback)
+        rospy.Service('srvSetVelocity_'+self.name,      SrvJointState,  self.SetVelocity_callback)
+        rospy.Service('srvSetPositionAtVel_'+self.name, SrvJointState,  self.SetPositionAtVel_callback)
+        rospy.Service('srvGetState_'+self.name,         SrvJointState,  self.GetState_callback)
+        rospy.Service('srvPark_'+self.name,             SrvPark,        self.Park_callback)
+        rospy.Service('srvSetZero_'+self.name,          SrvSetZero,     self.SetZero_callback)
 
         rospy.Subscriber('msgParameterUpdate', Bool, self.UpdateParameters_callback)
         #rospy.Subscriber('joint_states', JointState, self.cbJointState)
         #rospy.Subscriber('msgSetVelocity', msgSetVelocity, self.SetVelocity_callback)
-        #rospy.Subscriber('msgSetPositionMode', msgSetPositionMode, self.SetPosition_callbackMode)
-        #rospy.Subscriber('msgSetVelocityMode', msgSetVelocityMode, self.SetVelocity_callbackMode)
         
         rospy.on_shutdown(self.onshutdown_callback)
         
@@ -392,7 +387,7 @@ class RosSimpleStep:
     
     
     def getState(self, usecached=False):
-        rv = srvJointStateResponse()
+        rv = SrvJointStateResponse()
         if self.initialized:
             if not usecached:
                 self.posCache = self.ss.get_pos()
