@@ -2,48 +2,32 @@
 from __future__ import division
 import roslib; roslib.load_manifest('rosSimpleStep')
 import rospy
+import string
+import numpy as N
 from std_msgs.msg import *
-#from ros_flydra.msg import *
-from actuator_msgs.msg import msgActuatorParameters, msgSetPositionMode, msgSetVelocityMode
-from actuator_msgs.srv import srvCalibrate, srvState, srvPark, srvSetZero, srvJointState, srvJointStateResponse
+from rosSimpleStep.srv import SrvCalibrate, SrvJointState, SrvJointStateResponse, SrvPark, SrvSetZero
 from sensor_msgs.msg import JointState
 import simple_step
-#import time
-import numpy as N
 from optparse import OptionParser
-import string
 
-# BAI motor params that seem good:
-#$ python cmd_line.py -b 38400 -a A read-param nondefault
+# The following settings are the best I've found for the BAI controller with the Fivebar mechanism.
+# Unlisted parameters are set to their default.
+# Jan 12, 2012
 #
 #PRM:#     Parameter                  Value         Default 
 #----------------------------------------------------------------
-#PRM:0:    KP                         2000000       750000
-#PRM:1:    KI                         0             35000
-#PRM:2:    KPOS                       10000         15000
-#PRM:13:   update rate                1             4
+#PRM:0:    KP                         4537740       750000
+#PRM:1:    KI                         84154         35000
+#PRM:2:    KPOS                       1729          15000
+#PRM:11:   integral clamp             500           5000
 #PRM:20:   operating mode             5             4
 #PRM:26:   lowpass filter             1             0
 #PRM:90:   baud rate                  38400         9600
 #PRM:95:   daisy chain                1             0
-#PRM:97:   boot program                             .
+#PRM:101:  fault output               1             0
 #PRM:202:  filter cutoff              100.0         500.0
-#
-#$ python cmd_line.py -b 38400 -a B read-param nondefault
-#
-#PRM:#     Parameter                  Value         Default 
-#----------------------------------------------------------------
-#PRM:0:    KP                         2000000       750000
-#PRM:1:    KI                         0             35000
-#PRM:2:    KPOS                       10000         15000
-#PRM:13:   update rate                1             4
-#PRM:20:   operating mode             5             4
-#PRM:26:   lowpass filter             1             0
-#PRM:90:   baud rate                  38400         9600
-#PRM:94:   unit address               B             A
-#PRM:95:   daisy chain                1             0
-#PRM:97:   boot program                             .
-#PRM:202:  filter cutoff              100.0         500.0
+#PRM:204:  autotune distance          500.0         32000.0
+#PRM:205:  autotune bandwidth         7.0           20.0
 
 #PRM:#     Parameter                  Value         Default 
 #----------------------------------------------------------------
@@ -106,12 +90,13 @@ class RosSimpleStep:
         self.id = id
         self.units = units
         self.modeSS = 'position'
+        #self.modeSS = 'velocity'
         
         self.initialized = False
         
 
         ################################################
-        self._updateParameters()
+        self._UpdateParameters()
      
         ################################################
         # ROS Stuff
@@ -122,21 +107,19 @@ class RosSimpleStep:
         
         # Messages and Services
         #rospy.loginfo ("Offering services %s, %s, %s, %s, %s, %s" % ('srvCalibrate_'+self.name,'srvSetPosition_'+self.name,'srvSetVelocity_'+self.name,'srvGetState_'+self.name,'srvPark_'+self.name,'srvSetZero_'+self.name))
-        rospy.Service('srvCalibrate_'+self.name,        srvCalibrate,   self.calibrate_callback)
-        rospy.Service('srvSetPosition_'+self.name,      srvJointState,  self.setposition_callback)
-        rospy.Service('srvSetVelocity_'+self.name,      srvJointState,  self.setvelocity_callback)
-        rospy.Service('srvSetPositionAtVel_'+self.name, srvJointState,  self.setPositionAtVel_callback)
-        rospy.Service('srvGetState_'+self.name,         srvJointState,  self.getstate_callback)
-        rospy.Service('srvPark_'+self.name,             srvPark,        self.park_callback)
-        rospy.Service('srvSetZero_'+self.name,          srvSetZero,     self.setzero_callback)
+        rospy.Service('srvCalibrate_'+self.name,        SrvCalibrate,   self.Calibrate_callback)
+        rospy.Service('srvSetPosition_'+self.name,      SrvJointState,  self.SetPosition_callback)
+        rospy.Service('srvSetVelocity_'+self.name,      SrvJointState,  self.SetVelocity_callback)
+        rospy.Service('srvSetPositionAtVel_'+self.name, SrvJointState,  self.SetPositionAtVel_callback)
+        rospy.Service('srvGetState_'+self.name,         SrvJointState,  self.GetState_callback)
+        rospy.Service('srvPark_'+self.name,             SrvPark,        self.Park_callback)
+        rospy.Service('srvSetZero_'+self.name,          SrvSetZero,     self.SetZero_callback)
 
-        rospy.Subscriber('msgParameterUpdate', Bool, self.updateparameters_callback)
-        #rospy.Subscriber('joint_states', JointState, self.cbJointState)
-        #rospy.Subscriber('msgSetVelocity', msgSetVelocity, self.setvelocity_callback)
-        #rospy.Subscriber('msgSetPositionMode', msgSetPositionMode, self.setposition_callbackMode)
-        #rospy.Subscriber('msgSetVelocityMode', msgSetVelocityMode, self.setvelocity_callbackMode)
+        rospy.Subscriber('msgParameterUpdate', Bool, self.UpdateParameters_callback)
+        #rospy.Subscriber('joint_states', JointState, self.JointState_callback)
+        #rospy.Subscriber('msgSetVelocity', msgSetVelocity, self.SetVelocity_callback)
         
-        rospy.on_shutdown(self.onshutdown_callback)
+        rospy.on_shutdown(self.OnShutdown_callback)
         
                 
         #################################################
@@ -146,10 +129,8 @@ class RosSimpleStep:
 
 
         #################################################
-        self.STOP_CMD = False
         self.limitBuffer = 0.2
 
-        #self.posIndex = 0.0
         self.posOrigin = 0.0
         self.posPark = 0.0
         self.posActual = 0.0
@@ -173,88 +154,97 @@ class RosSimpleStep:
         
         #################################################
         # Stop the motor, and set current position as zero
+        #rospy.loginfo ('SS stop()')
         self.ss.stop()
+
+        #rospy.loginfo ('SS set_mode()')
         self.ss.set_mode(self.modeSS) # USBkey mode is separate from ros node mode.
         #self.ss.set_vel_and_dir(0, 0)
-        #rospy.loginfo('(%s) 1 get_pos() returns %d', self.name, self.ss.get_pos())
+        ##rospy.loginfo('(%s) 1 get_pos() returns %d', self.name, self.ss.get_pos())
+        #rospy.loginfo ('SS set_zero_pos()')
         self.ss.set_zero_pos(int(round(self.ss.get_pos())))
-        #rospy.loginfo('(%s) 2 get_pos() returns %s', self.name, self.ss.get_pos())
-        self._setZero(0.0)
-        #rospy.loginfo('(%s) 3 get_pos() returns %s', self.name, self.ss.get_pos())
+        ##rospy.loginfo('(%s) 2 get_pos() returns %s', self.name, self.ss.get_pos())
+        self._SetZero(0.0)
+        ##rospy.loginfo('(%s) 3 get_pos() returns %s', self.name, self.ss.get_pos())
         
-        self.ss.set_pos_vel(self._countFromUnits(self.velDefault))
+        #rospy.loginfo ('SS set_set_pos_vel()')
+        self.ss.set_pos_vel(self._CountFromUnits(self.velDefault))
+
+        #rospy.loginfo ('SS set_ext_int()')
         self.ss.set_ext_int('enabled')
+        self.posCache = self.ss.get_pos()
         
                             
 
     ##############################    
-    # calibrate_callback() - Service callback to find the "index" switch, set the origin (dist from index) as theta=0, 
-    #                   and go to the parking spot. 
+    # Calibrate_callback() - Service callback to find the "index" switch, set the origin (dist from index) as theta=0, 
+    #                        and go to the parking spot. 
     #
-    # req.id        - The actuator identifier.
     # req.direction - The direction to move to find home.
     # req.posOrigin - Location of origin, from index.
     # req.posPark   - Location of parking spot, from origin.
     #
-    def calibrate_callback(self, req):
-        #rospy.loginfo ('(%s) Received calibrate_callback(id=%s, direction=%s)', self.name, req.name, req.direction)
+    def Calibrate_callback(self, srvCalibrate):
+        rospy.loginfo ('(%s) Received Calibrate_callback(direction=%s)', self.name, srvCalibrate.direction)
         # Set current position as parking spot.
-        #self.posPark = self._unitsFromCount(self.ss.get_pos())
-        self.posOrigin = req.posOrigin
-        self.posPark = req.posPark
+        #self.posPark = self._UnitsFromCount(self.ss.get_pos())
+        self.posOrigin = srvCalibrate.posOrigin
+        self.posPark = srvCalibrate.posPark
         
-        #rospy.loginfo ('(%s) units(getpos()) returns %s --', self.name, self._unitsFromCount(self.ss.get_pos()))
+        #rospy.loginfo ('(%s) units(getpos()) returns %s --', self.name, self._UnitsFromCount(self.ss.get_pos()))
         
         # Move the motor toward the index switch.
         self.ss.stop()
-        self.ss.set_mode('velocity')
-        self.ss.set_ext_int('enabled')  # Enable the 'index' switch
-        self.ss.set_vel_and_dir(self._countFromUnits(self.velDefault), req.direction)
-
-        # Wait until we hit the switch.
-        while (self.ss.get_status() is not 'stopped'):
-            self.rate.sleep()
-        
+        if srvCalibrate.findIndex:
+            self.ss.set_mode('velocity')
+            self.ss.set_ext_int('enabled')  # Enable the 'index' switch
+            self.ss.set_vel_and_dir(self._CountFromUnits(self.velDefault), srvCalibrate.direction)
+    
+            # Wait until we hit the switch.
+            while (self.ss.get_status() is not 'stopped'):
+                self.rate.sleep()
+            
         # Disable the 'index' switch
         self.ss.set_ext_int('disabled')
-        
-        # Get the location of the index switch.
-        posIndex = self._unitsFromCount(self.ss.get_pos())
-        #rospy.loginfo ('(%s) units(getpos()) returns %s -', self.name, self._unitsFromCount(self.ss.get_pos()))
+            
+        # Get the current location.
+        posIndex = self._UnitsFromCount(self.ss.get_pos())
+        #rospy.loginfo ('(%s) units(getpos()) returns %s -', self.name, self._UnitsFromCount(self.ss.get_pos()))
         
         # Go back to the proper mode  
         self.ss.set_mode(self.modeSS) # USBkey mode is separate from ros node mode.
 
         # Set the given origin as 0.
-        self._setZero(self.posOrigin + posIndex)
+        self._SetZero(self.posOrigin + posIndex)
+        self.ss.start()
         self.initialized = True
 
         # Go back to the parking spot.
-        self.park()
-        rospy.loginfo ('SS (%s) Calibrated. ', self.name)
+        self.Park()
+        #rospy.loginfo ('SS (%s) Calibrated. ', self.name)
         
-        #rospy.loginfo ('(%s) units(getpos()) returns %s +', self.name, self._unitsFromCount(self.ss.get_pos()))
-        return self._unitsFromCount(self.ss.get_pos())
+        #rospy.loginfo ('(%s) units(getpos()) returns %s +', self.name, self._UnitsFromCount(self.ss.get_pos()))
+        return self._UnitsFromCount(self.ss.get_pos())
     
 
 
     ##############################
-    # setzero_callback() - Service callback to set the current position of the actuator as zero.
+    # SetZero_callback() - Service callback to set the current position of the actuator as zero.
     #
-    def setzero_callback(self, req):
+    def SetZero_callback(self, req):
         #rospy.loginfo('(%s) get_pos()- returns %s', self.name, self.ss.get_pos())
-        self._setZero(req.pos)
+        self._SetZero(req.pos)
         #rospy.loginfo('(%s) get_pos()+ returns %s', self.name, self.ss.get_pos())
         return True
         
         
 
     ##############################
-    # setposition_callbackMode() - Message callback to put this ROS node into position mode.
+    # SetPositionMode_callback() - Message callback to put this ROS node into position mode.
     #
     # msg.name[]  - The actuator identifier, one entry per actuator.
     #
-#    def setposition_callbackMode(self, msg):
+#    def SetPositionMode_callback(self, msg):
 #        k = -1
 #        for name in msg.name:    # Find our joint in the joint list.
 #            k = k+1
@@ -265,11 +255,11 @@ class RosSimpleStep:
 #            
 #        
     ##############################
-    # setvelocity_callbackMode() - Message callback to put this ROS node into velocity mode.
+    # SetVelocityMode_callback() - Message callback to put this ROS node into velocity mode.
     #
     # msg.name[]  - The actuator identifier, one entry per actuator.
     #
-#    def setvelocity_callbackMode(self, msg):
+#    def SetVelocityMode_callback(self, msg):
 #        k = -1
 #        for name in msg.name:    # Find our joint in the joint list.
 #            k = k+1
@@ -279,27 +269,27 @@ class RosSimpleStep:
         
         
     ##############################
-    # cbJointState() - Message callback for JointState updates.  Sends command to actuator.
+    # JointState_callback() - Message callback for JointState updates.  Sends command to actuator.
     #
     # msg.name[]           - The actuator identifier, one entry per actuator.
     # msg.position[]       - Desired actuator position.
     # msg.velocity[]       - Desired actuator velocity.
     #
-    def cbJointState(self, msg):
+    def JointState_callback(self, msg):
         k = -1
         for name in msg.name:    # Find our joint in the joint list.
             k = k+1
             if name==self.name and self.initialized:
-                self.setState(msg.position[k], msg.velocity[k])
+                self.SetState(msg.position[k], msg.velocity[k])
                 
                 
 
     ##############################
     #
-    def setPositionAtVel_callback(self, req):
-        #rospy.loginfo ('(%s) setposition_callback req=%s' % (self.name, req))
-        self.ss.set_pos_vel(self._countFromUnits(req.velocity))
-        self.setState(req.position, 0.0)
+    def SetPositionAtVel_callback(self, req):
+        #rospy.loginfo ('(%s) SetPosition_callback req=%s' % (self.name, req))
+        self.ss.set_pos_vel(self._CountFromUnits(req.velocity))
+        self.SetState(req.position, req.velocity, usecached=True)
         rv = req
 
         return (rv.header, rv.position, rv.velocity)
@@ -307,9 +297,9 @@ class RosSimpleStep:
     
     ##############################
     #
-    def setposition_callback(self, req):
-        #rospy.loginfo ('(%s) setposition_callback req=%s' % (self.name, req))
-        self.setState(req.position, 0.0)
+    def SetPosition_callback(self, req):
+        #rospy.loginfo ('(%s) SetPosition_callback req=%s' % (self.name, req))
+        self.SetState(req.position, 0.0)
         rv = req
 
         return (rv.header, rv.position, rv.velocity)
@@ -317,22 +307,22 @@ class RosSimpleStep:
     
     ##############################
     ##############################
-    # setvelocity_callback() - Service callback to set the actuator velocity.
+    # SetVelocity_callback() - Service callback to set the actuator velocity.
     #
     # srv.vel[] - The new velocity of the motor, velMin < vel < velMax.
     #
-    def setvelocity_callback(self, req):
+    def SetVelocity_callback(self, req):
         #rospy.loginfo ('(%s) setVelocity pos=%s, vel=%s' % (self.name, req.position, req.velocity))
-        self.setState(None, req.velocity)
+        self.SetState(None, req.velocity)
         rv = req
      
         return (rv.header, rv.position, rv.velocity)
-    def setvelocity_callback(self, req):
+    def SetVelocity_callback(self, req):
         if self.initialized:
             if self.velLast * req.velocity <= 0.0:
                  self.ss.set_dir_setpt (N.sign(req.velocity))
                  
-            self.ss.set_vel_setpt(self._countFromUnits(req.velocity))
+            self.ss.set_vel_setpt(self._CountFromUnits(req.velocity))
             self.velLast = req.velocity
             rv = req
         else:
@@ -343,10 +333,13 @@ class RosSimpleStep:
         return (rv.header, rv.position, rv.velocity)
         
         
+    def Start_callback(self, req):
+        self.ss.start()
+        
     ##############################
     #
-    def setState(self, pos, vel):
-        #rospy.loginfo ('(%s) setState pos=%s, vel=%s' % (self.name, pos,vel))
+    def SetState(self, pos, vel, usecached=False):
+        #rospy.loginfo ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
         # Convert message radians to node units.
         if self.units=='radians':
             try:
@@ -377,15 +370,15 @@ class RosSimpleStep:
         
 
         # Compute position and velocity commands to reach desired position & velocity.
-        posCmd = self._posCmdFromPosVelDes (posDes, velDes)
-        velCmd = self._velCmdFromPosVelDes (posDes, velDes)
+        posCmd = self._PosCmdFromPosVelDes (posDes, velDes)
+        velCmd = self._VelCmdFromPosVelDes (posDes, velDes, usecached=usecached)
             
         # Convert velocity to magnitude & direction
         bDirChange = True
         if N.sign(velCmd) == N.sign(self.velLast):
             bDirChange = False
             
-        if N.sign(velCmd) < 0:
+        if N.sign(velCmd) < 0.0:
             direction = 1
         else:
             direction = 0
@@ -394,9 +387,9 @@ class RosSimpleStep:
         
         
         if self.modeSS=='position':
-            #rospy.loginfo("(%s) posCmd=%s, posActual=%s, ssmode=%s", self.name, self._countFromUnits(posCmd), self._countFromUnits(self.posActual), self.ss.get_mode())
-            self.ss.set_pos_setpt(self._countFromUnits(posCmd))
-            self.ss.start()
+            #rospy.loginfo("(%s) posCmd=%s, posActual=%s, ssmode=%s", self.name, self._CountFromUnits(posCmd), self._CountFromUnits(self.posActual), self.ss.get_mode())
+            self.ss.set_pos_setpt(self._CountFromUnits(posCmd))
+            #self.ss.start()
             #rospy.loginfo("(%s) posCmd=%s", self.name, posCmd)
         else:                                        
             # Send command to motor.
@@ -405,7 +398,7 @@ class RosSimpleStep:
             #    self.ss.set_dir_setpt(direction)
             #self.ss.set_vel_setpt(self.velDes)
             #rospy.loginfo("(%s) velCmd=%s, dir=%s", self.name, velCmd, direction)
-            self.ss.set_vel_and_dir(self._countFromUnits(velCmd), direction)
+            self.ss.set_vel_and_dir(self._CountFromUnits(velCmd), direction)
             
             
         #rospy.loginfo('(%s) %0.3f Hz', self.name, 1.0/self.dt)
@@ -418,21 +411,24 @@ class RosSimpleStep:
         
                 
     ##############################
-    # getstate_callback() - Service callback to get position and velocity.
+    # GetState_callback() - Service callback to get position and velocity.
     #
-    def getstate_callback(self, req):
-        (header, position, velocity) = self.getState()
+    def GetState_callback(self, req):
+        (header, position, velocity) = self.GetState()
         #rospy.loginfo ('SS state=%s, %s, %s' % (header, position, velocity))
         return (header, position, velocity)
     
     
-    def getState(self):
-        rv = srvJointStateResponse()
+    def GetState(self, usecached=False):
+        rv = SrvJointStateResponse()
         if self.initialized:
+            if not usecached:
+                self.posCache = self.ss.get_pos()
+            
             #rv.header.stamp=rospy.Time.now()
             rv.header.frame_id=self.name
-            rv.position = self._unitsFromCount(self.ss.get_pos())
-            rv.velocity = self._unitsFromCount(self.ss.get_vel())
+            rv.position = self._UnitsFromCount(self.posCache)
+            rv.velocity = self._UnitsFromCount(self.ss.get_vel())
         else:
             rv.header.frame_id=self.name
             rv.position = 0.0
@@ -445,142 +441,104 @@ class RosSimpleStep:
     ##############################
     # msg.name[]           - The actuator identifier, one entry per actuator.
     def cbCmd(self, msg):
-        if self.STOP_CMD is True:
-            return
-        else:
-            des_pos = msg.pos
-            des_vel = msg.vel
-            if self.dummy is True:
-                #print self.pos, des_pos
-                #self.msgConfig.publish(msgMotorConfig(self.pos, self.dt, time0))
-                # controller:
-                vel_des = self.Kp * (des_pos - self.pos) 
-                    
-                # proposed acceleration:
-                accel = (vel_des - self.vel)
+        des_pos = msg.pos
+        des_vel = msg.vel
+        if self.dummy is True:
+            #print self.pos, des_pos
+            #self.msgConfig.publish(msgMotorConfig(self.pos, self.dt, time0))
+            # controller:
+            vel_des = self.Kp * (des_pos - self.pos) 
                 
-                # set new desired velocity
-                self.vel = self.vel + (vel_des - self.vel)*N.exp(-1*N.abs(accel)*self.Kd)
+            # proposed acceleration:
+            accel = (vel_des - self.vel)
+            
+            # set new desired velocity
+            self.vel = self.vel + (vel_des - self.vel)*N.exp(-1*N.abs(accel)*self.Kd)
 
-                now = rospy.get_rostime()
-                self.dt = float(now.nsecs - self.timeLast.nsecs) * 10E-9
-                self.pos = self.vel*dt + self.pos            
-                self.timeLast = now
+            now = rospy.get_rostime()
+            self.dt = float(now.nsecs - self.timeLast.nsecs) * 10E-9
+            self.pos = self.vel*dt + self.pos            
+            self.timeLast = now
                 
                 
     ##############################
-    def onshutdown_callback(self):
+    def OnShutdown_callback(self):
         rospy.loginfo ('SS (%s) Stopping, ss.get_serial_number()=%s', self.name, self.ss.get_serial_number())
         self.ss.set_mode('position')
-        self.park()
-        self.ss.stop()            
+        self.Park()
+        #self.ss.stop()            
 
 
     ##############################
-    def park_callback(self, req):
-        self.park()
+    def Park_callback(self, req):
+        self.Park()
         return True
     
         
     ##############################
-    def park(self):
+    def Park(self):
         if self.initialized:
-            #rospy.sleep(1.0)
-            self.ss.start()
-            self.ss.set_pos_setpt(self._countFromUnits(self.posPark))
-            #self.ss.start()
+            self.ss.set_mode('position')
+            self.ss.set_pos_setpt(self._CountFromUnits(self.posPark))
             rospy.sleep(1.0)
+            self.ss.set_mode(self.modeSS)
         
     
     ##############################
-    # _setZero() - Set the zero position of the motor at the specified location.
+    # _SetZero() - Set the zero position of the motor at the specified location.
     #          
     # posNewZero - The new zero position, in current coordinates.
     #
-    def _setZero(self,posNewZero):
-        self.ss.set_zero_pos(self._countFromUnits(posNewZero))
+    def _SetZero(self,posNewZero):
+        self.ss.set_zero_pos(self._CountFromUnits(posNewZero))
 
 
     ##############################
-    # updateparameters_callback() - Message callback to set actuator parameters.
+    # UpdateParameters_callback() - Message callback to set actuator parameters.
     #
-    def updateparameters_callback(self, msg=None):
-        self._updateParameters()
+    def UpdateParameters_callback(self, msg=None):
+        self._UpdateParameters()
         
 
     ##############################
-    def _updateParameters (self):
-        param = 'rosSimpleStep/countsPerRev'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 4000.0)
-        self.countsPerRev = rospy.get_param(param)
+    def _UpdateParameters (self):
+        self.countsPerRev = rospy.get_param('rosSimpleStep/countsPerRev', 4000.0)
         self.countsPerRadian = self.countsPerRev / (2.0*N.pi)
-
-        param = 'rosSimpleStep/limitLo'
-        if not rospy.has_param(param):
-            rospy.set_param(param, -2.0*N.pi)
-        self.limitLo = rospy.get_param(param)
-
-        param = 'rosSimpleStep/limitHi'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 2.0*N.pi)
-        self.limitHi = rospy.get_param(param)
-
-        param = 'rosSimpleStep/velMin'
-        if not rospy.has_param(param):
-            rospy.set_param(param, -2.0*N.pi)
-        self.velMin = rospy.get_param(param)
-
-        param = 'rosSimpleStep/velMax'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 2.0*N.pi)
-        self.velMax = rospy.get_param(param)
-
-        param = 'rosSimpleStep/velDefault'
-        if not rospy.has_param(param):
-            rospy.set_param(param, N.pi / 2.0)
-        self.velDefault = rospy.get_param(param)
-
-        param = 'rosSimpleStep/Kp'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 1.0)
-        self.Kp = rospy.get_param(param)
-
-        param = 'rosSimpleStep/Ki'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 0.0)
-        self.Ki = rospy.get_param(param)
-
-        param = 'rosSimpleStep/Kd'
-        if not rospy.has_param(param):
-            rospy.set_param(param, 0.0)
-        self.Kd = rospy.get_param(param)
+        
+        self.limitLo = rospy.get_param('rosSimpleStep/limitLo', -2.0*N.pi)
+        self.limitHi = rospy.get_param('rosSimpleStep/limitHi', 2.0*N.pi)
+        self.velMin = rospy.get_param('rosSimpleStep/velMin', -2.0*N.pi)
+        self.velMax = rospy.get_param('rosSimpleStep/velMax', 2.0*N.pi)
+        self.velDefault = rospy.get_param('rosSimpleStep/velDefault', N.pi/2.0)
+        self.Kp = rospy.get_param('rosSimpleStep/Kp', 1.0)
+        self.Ki = rospy.get_param('rosSimpleStep/Ki', 0.0)
+        self.Kd = rospy.get_param('rosSimpleStep/Kd', 0.0)
 
 
            
     ##############################
-    def _countFromUnits(self, val):            
+    def _CountFromUnits(self, val):            
         if self.units=='radians':
             return int(round(val * float(self.countsPerRadian)))
         else:
             return int(val)
         
     ##############################
-    def _radiansFromUnits(self, val):            
+    def _RadiansFromUnits(self, val):            
         if self.units=='radians':
             return val
         else:
             return val / float(self.countsPerRadian)
     
     ##############################
-    def _unitsFromCount(self, count):            
+    def _UnitsFromCount(self, count):            
         if self.units=='radians':
             return float(count) / float(self.countsPerRadian)
         else:
-            return val
+            return count
         
     ##############################
-    def _unitsFromRadians(self, radians):            
+    def _UnitsFromRadians(self, radians):            
         if self.units=='radians':
             return radians
         else:
@@ -591,7 +549,7 @@ class RosSimpleStep:
     # Computes the position command needed to reach the desired position and velocity in dt.
     # Currently this function is simplistic, and just returns the desired position.  Could extrapolate
     # a position based on motor speed, etc.
-    def _posCmdFromPosVelDes(self, posDes, velDes):
+    def _PosCmdFromPosVelDes(self, posDes, velDes):
         if posDes is not None:
             posCmd = posDes
         else:
@@ -602,7 +560,7 @@ class RosSimpleStep:
     
     ##############################
     # Computes the velocity command needed to reach the desired position and velocity in self.dt.
-    def _velCmdFromPosVelDes(self, posDes, velDes): 
+    def _VelCmdFromPosVelDes(self, posDes, velDes, usecached=False): 
         if posDes is None:  # If no position was specified, there's no position correction.
             velPos = 0
         else:               # If a position was specified, then control toward that position.
@@ -610,7 +568,14 @@ class RosSimpleStep:
             #alpha = self.dt / (self.Kd + self.dt)
             #self.posDesFiltered = alpha*posDes + (1.-alpha)*self.posDesFiltered
             #self.velDesFiltered = alpha*velDes + (1.-alpha)*self.velDesFiltered
-            self.posActual = self._unitsFromCount(self.ss.get_pos())
+            if not usecached:
+                self.posCache = self.ss.get_pos()
+                
+            self.Kp = rospy.get_param('rosSimpleStep/Kp', 1.0)
+            self.Ki = rospy.get_param('rosSimpleStep/Ki', 0.0)
+            self.Kd = rospy.get_param('rosSimpleStep/Kd', 0.0)
+
+            self.posActual = self._UnitsFromCount(self.posCache)
             self.posError = posDes - self.posActual
             self.posErrorD = self.posError - self.posErrorLast
             self.posErrorI += self.posError
@@ -618,7 +583,8 @@ class RosSimpleStep:
             
         # Control the velocity to track position:
         velCmd = velPos + velDes
-        #rospy.loginfo("(%s) posA=%04f, posDes=%04f, eP=%04f, eD=%04f, eI=%04f, velCmd=%04f, dir=%s", self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
+        rospy.loginfo("(%s) posA=%04f, posDes=%04f, posE=%04f, posD=%04f, posI=%04f, velCmd=%04f, dir=%s", 
+                      self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
 
 
         # Limit the motor position
@@ -634,8 +600,9 @@ class RosSimpleStep:
 
         return velCmd
     
+    
     ##############################
-    def main(self):
+    def Main(self):
         rospy.spin()
                 
                 
@@ -654,8 +621,8 @@ if __name__ == '__main__':
 
     try:
         node = RosSimpleStep(name=options.name, id=options.id)
-        node.main()
-    except KeyboardInterrupt:
+        node.Main()
+    except:
         rospy.loginfo("SS (%s) rosSimpleStep - postinit", options.name)
         
     
