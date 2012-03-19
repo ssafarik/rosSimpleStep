@@ -86,13 +86,15 @@ class RosSimpleStep:
     # __init() - Initialization for class RosSimpleStep.
     # 
     def __init__(self, name=None, id=None, units='radians'):
+        self.initialized = False
+        self.initializedSS = False
+
         self.name = name
         self.id = id
         self.units = units
         self.modeSS = 'position'
         #self.modeSS = 'velocity'
         
-        self.initialized = False
         
 
         ################################################
@@ -126,6 +128,7 @@ class RosSimpleStep:
         # Initialize the USB key.
         rospy.loginfo ('SS self.id=%s' % self.id)
         self.ss = simple_step.Simple_Step(serial_number=self.id)
+        self.initializedSS = True
 
 
         #################################################
@@ -186,6 +189,9 @@ class RosSimpleStep:
     #
     def Calibrate_callback(self, srvCalibrate):
         rospy.loginfo ('(%s) Received Calibrate_callback(direction=%s)', self.name, srvCalibrate.direction)
+        while not self.initializedSS:
+            rospy.sleep (0.5)
+            
         # Set current position as parking spot.
         #self.posPark = self._UnitsFromCount(self.ss.get_pos())
         self.posOrigin = srvCalibrate.posOrigin
