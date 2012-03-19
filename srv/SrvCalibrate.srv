@@ -1,5 +1,6 @@
 int32 direction
 float32 posOrigin
 float32 posPark
+bool findIndex    # True = actively find the index switch; False = use current position as index.
 ---
 float32 position

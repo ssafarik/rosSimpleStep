@@ -5,6 +5,8 @@
           POSORIGIN
           POSPARK-VAL
           POSPARK
+          FINDINDEX-VAL
+          FINDINDEX
           POSITION-VAL
           POSITION
 ))

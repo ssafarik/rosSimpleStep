@@ -21,7 +21,12 @@
     :reader posPark
     :initarg :posPark
     :type cl:float
-    :initform 0.0))
+    :initform 0.0)
+   (findIndex
+    :reader findIndex
+    :initarg :findIndex
+    :type cl:boolean
+    :initform cl:nil))
 )
 
 (cl:defclass SrvCalibrate-request (<SrvCalibrate-request>)
@@ -46,6 +51,11 @@
 (cl:defmethod posPark-val ((m <SrvCalibrate-request>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader rosSimpleStep-srv:posPark-val is deprecated.  Use rosSimpleStep-srv:posPark instead.")
   (posPark m))
+
+(cl:ensure-generic-function 'findIndex-val :lambda-list '(m))
+(cl:defmethod findIndex-val ((m <SrvCalibrate-request>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader rosSimpleStep-srv:findIndex-val is deprecated.  Use rosSimpleStep-srv:findIndex instead.")
+  (findIndex m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <SrvCalibrate-request>) ostream)
   "Serializes a message object of type '<SrvCalibrate-request>"
   (cl:let* ((signed (cl:slot-value msg 'direction)) (unsigned (cl:if (cl:< signed 0) (cl:+ signed 4294967296) signed)))
@@ -64,6 +74,7 @@
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream))
+  (cl:write-byte (cl:ldb (cl:byte 8 0) (cl:if (cl:slot-value msg 'findIndex) 1 0)) ostream)
 )
 (cl:defmethod roslisp-msg-protocol:deserialize ((msg <SrvCalibrate-request>) istream)
   "Deserializes a message object of type '<SrvCalibrate-request>"
@@ -85,6 +96,7 @@
       (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
     (cl:setf (cl:slot-value msg 'posPark) (roslisp-utils:decode-single-float-bits bits)))
+    (cl:setf (cl:slot-value msg 'findIndex) (cl:not (cl:zerop (cl:read-byte istream))))
   msg
 )
 (cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<SrvCalibrate-request>)))
@@ -95,21 +107,22 @@
   "rosSimpleStep/SrvCalibrateRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<SrvCalibrate-request>)))
   "Returns md5sum for a message object of type '<SrvCalibrate-request>"
-  "175165c20155cff46378e7208113baea")
+  "e6b1e4f347387c9840fcdbc0affbf11b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'SrvCalibrate-request)))
   "Returns md5sum for a message object of type 'SrvCalibrate-request"
-  "175165c20155cff46378e7208113baea")
+  "e6b1e4f347387c9840fcdbc0affbf11b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<SrvCalibrate-request>)))
   "Returns full string definition for message of type '<SrvCalibrate-request>"
-  (cl:format cl:nil "int32 direction~%float32 posOrigin~%float32 posPark~%~%~%"))
+  (cl:format cl:nil "int32 direction~%float32 posOrigin~%float32 posPark~%bool findIndex~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'SrvCalibrate-request)))
   "Returns full string definition for message of type 'SrvCalibrate-request"
-  (cl:format cl:nil "int32 direction~%float32 posOrigin~%float32 posPark~%~%~%"))
+  (cl:format cl:nil "int32 direction~%float32 posOrigin~%float32 posPark~%bool findIndex~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <SrvCalibrate-request>))
   (cl:+ 0
      4
      4
      4
+     1
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <SrvCalibrate-request>))
   "Converts a ROS message object to a list"
@@ -117,6 +130,7 @@
     (cl:cons ':direction (direction msg))
     (cl:cons ':posOrigin (posOrigin msg))
     (cl:cons ':posPark (posPark msg))
+    (cl:cons ':findIndex (findIndex msg))
 ))
 ;//! \htmlinclude SrvCalibrate-response.msg.html
 
@@ -166,10 +180,10 @@
   "rosSimpleStep/SrvCalibrateResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<SrvCalibrate-response>)))
   "Returns md5sum for a message object of type '<SrvCalibrate-response>"
-  "175165c20155cff46378e7208113baea")
+  "e6b1e4f347387c9840fcdbc0affbf11b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'SrvCalibrate-response)))
   "Returns md5sum for a message object of type 'SrvCalibrate-response"
-  "175165c20155cff46378e7208113baea")
+  "e6b1e4f347387c9840fcdbc0affbf11b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<SrvCalibrate-response>)))
   "Returns full string definition for message of type '<SrvCalibrate-response>"
   (cl:format cl:nil "float32 position~%~%~%~%"))

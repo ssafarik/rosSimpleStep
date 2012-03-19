@@ -29,6 +29,7 @@ struct SrvCalibrateRequest_ {
   : direction(0)
   , posOrigin(0.0)
   , posPark(0.0)
+  , findIndex(false)
   {
   }
 
@@ -36,6 +37,7 @@ struct SrvCalibrateRequest_ {
   : direction(0)
   , posOrigin(0.0)
   , posPark(0.0)
+  , findIndex(false)
   {
   }
 
@@ -48,6 +50,9 @@ struct SrvCalibrateRequest_ {
   typedef float _posPark_type;
   float posPark;
 
+  typedef uint8_t _findIndex_type;
+  uint8_t findIndex;
+
 
 private:
   static const char* __s_getDataType_() { return "rosSimpleStep/SrvCalibrateRequest"; }
@@ -57,14 +62,14 @@ public:
   ROS_DEPRECATED const std::string __getDataType() const { return __s_getDataType_(); }
 
 private:
-  static const char* __s_getMD5Sum_() { return "7f15dccfe1392147301443cafb07378b"; }
+  static const char* __s_getMD5Sum_() { return "122720100147f8e7fccdf289e511bf0b"; }
 public:
   ROS_DEPRECATED static const std::string __s_getMD5Sum() { return __s_getMD5Sum_(); }
 
   ROS_DEPRECATED const std::string __getMD5Sum() const { return __s_getMD5Sum_(); }
 
 private:
-  static const char* __s_getServerMD5Sum_() { return "175165c20155cff46378e7208113baea"; }
+  static const char* __s_getServerMD5Sum_() { return "e6b1e4f347387c9840fcdbc0affbf11b"; }
 public:
   ROS_DEPRECATED static const std::string __s_getServerMD5Sum() { return __s_getServerMD5Sum_(); }
 
@@ -74,6 +79,7 @@ private:
   static const char* __s_getMessageDefinition_() { return "int32 direction\n\
 float32 posOrigin\n\
 float32 posPark\n\
+bool findIndex\n\
 \n\
 "; }
 public:
@@ -87,6 +93,7 @@ public:
     ros::serialization::serialize(stream, direction);
     ros::serialization::serialize(stream, posOrigin);
     ros::serialization::serialize(stream, posPark);
+    ros::serialization::serialize(stream, findIndex);
     return stream.getData();
   }
 
@@ -96,6 +103,7 @@ public:
     ros::serialization::deserialize(stream, direction);
     ros::serialization::deserialize(stream, posOrigin);
     ros::serialization::deserialize(stream, posPark);
+    ros::serialization::deserialize(stream, findIndex);
     return stream.getData();
   }
 
@@ -105,6 +113,7 @@ public:
     size += ros::serialization::serializationLength(direction);
     size += ros::serialization::serializationLength(posOrigin);
     size += ros::serialization::serializationLength(posPark);
+    size += ros::serialization::serializationLength(findIndex);
     return size;
   }
 
@@ -151,7 +160,7 @@ public:
   ROS_DEPRECATED const std::string __getMD5Sum() const { return __s_getMD5Sum_(); }
 
 private:
-  static const char* __s_getServerMD5Sum_() { return "175165c20155cff46378e7208113baea"; }
+  static const char* __s_getServerMD5Sum_() { return "e6b1e4f347387c9840fcdbc0affbf11b"; }
 public:
   ROS_DEPRECATED static const std::string __s_getServerMD5Sum() { return __s_getServerMD5Sum_(); }
 
@@ -220,12 +229,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::rosSimpleStep::SrvCalibrateRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "7f15dccfe1392147301443cafb07378b";
+    return "122720100147f8e7fccdf289e511bf0b";
   }
 
   static const char* value(const  ::rosSimpleStep::SrvCalibrateRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x7f15dccfe1392147ULL;
-  static const uint64_t static_value2 = 0x301443cafb07378bULL;
+  static const uint64_t static_value1 = 0x122720100147f8e7ULL;
+  static const uint64_t static_value2 = 0xfccdf289e511bf0bULL;
 };
 
 template<class ContainerAllocator>
@@ -245,6 +254,7 @@ struct Definition< ::rosSimpleStep::SrvCalibrateRequest_<ContainerAllocator> > {
     return "int32 direction\n\
 float32 posOrigin\n\
 float32 posPark\n\
+bool findIndex\n\
 \n\
 ";
   }
@@ -314,6 +324,7 @@ template<class ContainerAllocator> struct Serializer< ::rosSimpleStep::SrvCalibr
     stream.next(m.direction);
     stream.next(m.posOrigin);
     stream.next(m.posPark);
+    stream.next(m.findIndex);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -347,7 +358,7 @@ template<>
 struct MD5Sum<rosSimpleStep::SrvCalibrate> {
   static const char* value() 
   {
-    return "175165c20155cff46378e7208113baea";
+    return "e6b1e4f347387c9840fcdbc0affbf11b";
   }
 
   static const char* value(const rosSimpleStep::SrvCalibrate&) { return value(); } 
@@ -367,7 +378,7 @@ template<class ContainerAllocator>
 struct MD5Sum<rosSimpleStep::SrvCalibrateRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "175165c20155cff46378e7208113baea";
+    return "e6b1e4f347387c9840fcdbc0affbf11b";
   }
 
   static const char* value(const rosSimpleStep::SrvCalibrateRequest_<ContainerAllocator> &) { return value(); } 
@@ -387,7 +398,7 @@ template<class ContainerAllocator>
 struct MD5Sum<rosSimpleStep::SrvCalibrateResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "175165c20155cff46378e7208113baea";
+    return "e6b1e4f347387c9840fcdbc0affbf11b";
   }
 
   static const char* value(const rosSimpleStep::SrvCalibrateResponse_<ContainerAllocator> &) { return value(); } 
