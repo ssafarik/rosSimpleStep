@@ -127,8 +127,12 @@ class RosSimpleStep:
         #################################################
         # Initialize the USB key.
         rospy.loginfo ('SS self.id=%s' % self.id)
-        self.ss = simple_step.Simple_Step(serial_number=self.id)
-        self.initializedSS = True
+        try:
+            self.ss = simple_step.Simple_Step(serial_number=self.id)
+            self.initializedSS = True
+        except RuntimeError:
+            rospy.logwarn ('Could not access the simple-step device at id=%s' % self.id)
+            
 
 
         #################################################
@@ -469,10 +473,11 @@ class RosSimpleStep:
                 
     ##############################
     def OnShutdown_callback(self):
-        rospy.loginfo ('SS (%s) Stopping, ss.get_serial_number()=%s', self.name, self.ss.get_serial_number())
-        self.ss.set_mode('position')
-        self.Park()
-        #self.ss.stop()            
+        if self.initializedSS:
+            rospy.loginfo ('SS (%s) Stopping, ss.get_serial_number()=%s', self.name, self.ss.get_serial_number())
+            self.ss.set_mode('position')
+            self.Park()
+            #self.ss.stop()
 
 
     ##############################
