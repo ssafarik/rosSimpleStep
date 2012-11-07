@@ -130,8 +130,8 @@ class RosSimpleStep:
         try:
             self.ss = simple_step.Simple_Step(serial_number=self.id)
             self.initializedSS = True
-        except RuntimeError:
-            rospy.logwarn ('Could not access the simple-step device at id=%s' % self.id)
+        except RuntimeError,e:
+            rospy.logwarn ('Could not access the simple-step device at id=%s: %s' % (self.id,e))
             
 
 
