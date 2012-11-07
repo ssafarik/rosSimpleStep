@@ -130,8 +130,8 @@ class RosSimpleStep:
         try:
             self.ss = simple_step.Simple_Step(serial_number=self.id)
             self.initializedSS = True
-        except RuntimeError:
-            rospy.logwarn ('Could not access the simple-step device at id=%s' % self.id)
+        except RuntimeError, e:
+            rospy.logwarn ('Could not access the simple-step device at id=%s: %s' % (self.id, e))
             
 
 
@@ -594,8 +594,8 @@ class RosSimpleStep:
             
         # Control the velocity to track position:
         velCmd = velPos + velDes
-        rospy.loginfo("(%s) posA=%04f, posDes=%04f, posE=%04f, posD=%04f, posI=%04f, velCmd=%04f, dir=%s", 
-                      self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
+        #rospy.loginfo("(%s) posA=%04f, posDes=%04f, posE=%04f, posD=%04f, posI=%04f, velCmd=%04f, dir=%s", 
+        #              self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
 
 
         # Limit the motor position
@@ -630,11 +630,11 @@ if __name__ == '__main__':
     #                    help="mode=position|velocity")
     (options, args) = parser.parse_args()
 
-    try:
-        node = RosSimpleStep(name=options.name, id=options.id)
-        node.Main()
-    except:
-        rospy.loginfo("SS (%s) rosSimpleStep - postinit", options.name)
+#try:
+    node = RosSimpleStep(name=options.name, id=options.id)
+    node.Main()
+#except:
+#    rospy.loginfo("SS (%s) rosSimpleStep - postinit", options.name)
         
     
     
