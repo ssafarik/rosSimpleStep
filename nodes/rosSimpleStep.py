@@ -594,8 +594,8 @@ class RosSimpleStep:
             
         # Control the velocity to track position:
         velCmd = velPos + velDes
-        rospy.loginfo("(%s) posA=%04f, posDes=%04f, posE=%04f, posD=%04f, posI=%04f, velCmd=%04f, dir=%s", 
-                      self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
+        #rospy.loginfo("(%s) posA=%04f, posDes=%04f, posE=%04f, posD=%04f, posI=%04f, velCmd=%04f, dir=%s", 
+        #              self.name, self.posActual, posDes, self.posError, self.posErrorD, self.posErrorI, velCmd, self.direction)
 
 
         # Limit the motor position
