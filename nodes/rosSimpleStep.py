@@ -10,57 +10,17 @@ from sensor_msgs.msg import JointState
 import simple_step
 from optparse import OptionParser
 
-# The following settings are the best I've found for the BAI controller with the Fivebar mechanism.
+# The following settings are for the BAI controller.
 # Unlisted parameters are set to their default.
-# Jan 12, 2012
 #
 #PRM:#     Parameter                  Value         Default 
 #----------------------------------------------------------------
-#PRM:0:    KP                         4537740       750000
-#PRM:1:    KI                         84154         35000
-#PRM:2:    KPOS                       1729          15000
-#PRM:11:   integral clamp             500           5000
-#PRM:20:   operating mode             5             4
-#PRM:26:   lowpass filter             1             0
-#PRM:90:   baud rate                  38400         9600
-#PRM:95:   daisy chain                1             0
-#PRM:101:  fault output               1             0
-#PRM:202:  filter cutoff              100.0         500.0
-#PRM:204:  autotune distance          500.0         32000.0
-#PRM:205:  autotune bandwidth         7.0           20.0
-
-#PRM:#     Parameter                  Value         Default 
-#----------------------------------------------------------------
-#PRM:0:    KP                         4537740       750000
-#PRM:1:    KI                         84154         35000
-#PRM:2:    KPOS                       1729          15000
-#PRM:11:   integral clamp             500           5000
-#PRM:20:   operating mode             5             4
-#PRM:26:   lowpass filter             1             0
-#PRM:90:   baud rate                  38400         9600
-#PRM:95:   daisy chain                1             0
-#PRM:101:  fault output               1             0
-#PRM:202:  filter cutoff              100.0         500.0
-#PRM:204:  autotune distance          500.0         32000.0
-#PRM:205:  autotune bandwidth         7.0           20.0
-#
-#ssafarik@flappy:~/pybai/BAI$ python cmd_line.py -a B -b 38400 read-param nondefault
-#
-#PRM:#     Parameter                  Value         Default 
-#----------------------------------------------------------------
-#PRM:0:    KP                         4537740       750000
-#PRM:1:    KI                         84154         35000
-#PRM:2:    KPOS                       1729          15000
-#PRM:11:   integral clamp             500           5000
 #PRM:20:   operating mode             5             4
 #PRM:26:   lowpass filter             1             0
 #PRM:90:   baud rate                  38400         9600
 #PRM:94:   unit address               B             A
 #PRM:95:   daisy chain                1             0
 #PRM:101:  fault output               1             0
-#PRM:202:  filter cutoff              100.0         500.0
-#PRM:204:  autotune distance          500.0         32000.0
-#PRM:205:  autotune bandwidth         7.0           20.0
 
 
 # Integer values for operating modes - used in usb set/get
@@ -195,7 +155,11 @@ class RosSimpleStep:
         rospy.loginfo ('(%s) Received Calibrate_callback(direction=%s)', self.name, srvCalibrate.direction)
         while not self.initializedSS:
             rospy.sleep (0.5)
-            
+        
+        
+        self.UnwindZero()
+        
+        
         # Set current position as parking spot.
         #self.posPark = self._UnitsFromCount(self.ss.get_pos())
         self.posOrigin = srvCalibrate.posOrigin
@@ -238,6 +202,13 @@ class RosSimpleStep:
     
 
 
+    # Unwind the motor position, so that the zero is in the same location, but the current count is in the range [0,countsPerRev]
+    def UnwindZero(self):
+        pos = self.ss.get_pos()
+        self.ss.set_zero_pos(pos - (pos % int(self.countsPerRev))) 
+        
+
+        
     ##############################
     # SetZero_callback() - Service callback to set the current position of the actuator as zero.
     #
@@ -491,7 +462,11 @@ class RosSimpleStep:
         if self.initialized:
             self.ss.set_mode('position')
             self.ss.set_pos_setpt(self._CountFromUnits(self.posPark))
-            rospy.sleep(1.0)
+            #rospy.sleep(1.0)
+            position = 999
+            while (N.abs(position-self.posPark) > 0.1): # Wait until we're within 0.1 radians of parking spot.
+                (header, position, velocity) = self.GetState()
+                
             self.ss.set_mode(self.modeSS)
         
     
