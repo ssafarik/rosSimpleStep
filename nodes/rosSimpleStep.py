@@ -125,7 +125,7 @@ class RosSimpleStep:
         self.ss.stop()
 
         #rospy.loginfo ('SS set_mode()')
-        self.ss.set_mode(self.modeSS) # USBkey mode is separate from ros node mode.
+        self.ss.set_mode('position')#self.modeSS) # USBkey mode is separate from ros node mode.
         #self.ss.set_vel_and_dir(0, 0)
         ##rospy.loginfo('(%s) 1 get_pos() returns %d', self.name, self.ss.get_pos())
         #rospy.loginfo ('SS set_zero_pos()')
@@ -140,6 +140,7 @@ class RosSimpleStep:
         #rospy.loginfo ('SS set_ext_int()')
         self.ss.set_ext_int('enabled')
         self.posCache = self.ss.get_pos()
+        self.ss.set_mode(self.modeSS)
         
                             
 
@@ -268,7 +269,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetPositionAtVel_callback(self, req):
-        #rospy.loginfo ('(%s) SetPosition_callback req=%s' % (self.name, req))
+        rospy.logwarn ('(%s) SetPosition_callback req=%s' % (self.name, req))
         self.ss.set_pos_vel(self._CountFromUnits(req.velocity))
         self.SetState(req.position, req.velocity, usecached=True)
         rv = req
@@ -292,18 +293,25 @@ class RosSimpleStep:
     #
     # srv.vel[] - The new velocity of the motor, velMin < vel < velMax.
     #
+#    def SetVelocity_callback(self, req):
+#        #rospy.logwarn ('(%s) setVelocity1 pos=%s, vel=%s' % (self.name, req.position, req.velocity))
+#        self.SetState(None, req.velocity)
+#        rv = req
+#     
+#        return (rv.header, rv.position, rv.velocity)
     def SetVelocity_callback(self, req):
-        #rospy.loginfo ('(%s) setVelocity pos=%s, vel=%s' % (self.name, req.position, req.velocity))
-        self.SetState(None, req.velocity)
-        rv = req
-     
-        return (rv.header, rv.position, rv.velocity)
-    def SetVelocity_callback(self, req):
+#        rospy.logwarn ('(%s) setVelocity2 pos=%s, vel=%s' % (self.name, req.position, req.velocity))
         if self.initialized:
-            if self.velLast * req.velocity <= 0.0:
-                 self.ss.set_dir_setpt (N.sign(req.velocity))
-                 
-            self.ss.set_vel_setpt(self._CountFromUnits(req.velocity))
+#            if self.velLast * req.velocity <= 0.0:
+            if (req.velocity>=0):
+                direction = POSITIVE
+            else:
+                direction = NEGATIVE
+
+            #rospy.logwarn('dir=%d, vel=%d' % (direction, self._CountFromUnits(N.abs(req.velocity))))
+            self.ss.set_vel_and_dir(self._CountFromUnits(N.abs(req.velocity)), direction)
+            #self.ss.set_dir_setpt (direction)
+            #self.ss.set_vel_setpt(self._CountFromUnits(N.abs(req.velocity)))
             self.velLast = req.velocity
             rv = req
         else:
@@ -320,7 +328,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetState(self, pos, vel, usecached=False):
-        #rospy.loginfo ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
+        rospy.logwarn ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
         # Convert message radians to node units.
         if self.units=='radians':
             try:
@@ -378,7 +386,7 @@ class RosSimpleStep:
             #if bDirChange: 
             #    self.ss.set_dir_setpt(direction)
             #self.ss.set_vel_setpt(self.velDes)
-            #rospy.loginfo("(%s) velCmd=%s, dir=%s", self.name, velCmd, direction)
+            rospy.logwarn("(%s) velCmd=%s, dir=%s", self.name, velCmd, direction)
             self.ss.set_vel_and_dir(self._CountFromUnits(velCmd), direction)
             
             
