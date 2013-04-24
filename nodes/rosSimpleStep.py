@@ -269,7 +269,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetPositionAtVel_callback(self, req):
-        rospy.logwarn ('(%s) SetPosition_callback req=%s' % (self.name, req))
+        #rospy.logwarn ('(%s) SetPosition_callback req=%s' % (self.name, req))
         self.ss.set_pos_vel(self._CountFromUnits(req.velocity))
         self.SetState(req.position, req.velocity, usecached=True)
         rv = req
@@ -328,7 +328,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetState(self, pos, vel, usecached=False):
-        rospy.logwarn ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
+        #rospy.logwarn ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
         # Convert message radians to node units.
         if self.units=='radians':
             try:
