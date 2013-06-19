@@ -301,6 +301,7 @@ class RosSimpleStep:
 #        return (rv.header, rv.position, rv.velocity)
     def SetVelocity_callback(self, req):
 #        rospy.logwarn ('(%s) setVelocity2 pos=%s, vel=%s' % (self.name, req.position, req.velocity))
+        rv = SrvJointStateResponse()
         if self.initialized:
 #            if self.velLast * req.velocity <= 0.0:
             if (req.velocity>=0):
@@ -313,7 +314,9 @@ class RosSimpleStep:
             #self.ss.set_dir_setpt (direction)
             #self.ss.set_vel_setpt(self._CountFromUnits(N.abs(req.velocity)))
             self.velLast = req.velocity
-            rv = req
+            rv.header = req.header
+            rv.position = req.position
+            rv.velocity = req.velocity
         else:
             rv.header = None
             rv.position = None
