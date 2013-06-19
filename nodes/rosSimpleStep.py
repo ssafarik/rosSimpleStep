@@ -108,8 +108,8 @@ class RosSimpleStep:
         self.velDes = 0.0
         self.velLast = 0.0
         
-        self.direction = 0
-        self.dirLast = 0
+        self.direction = POSITIVE
+        self.dirLast = POSITIVE
 
         self.iStep = 0
         self.dt = 0.01
@@ -269,7 +269,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetPositionAtVel_callback(self, req):
-        rospy.logwarn ('(%s) SetPosition_callback req=%s' % (self.name, req))
+        #rospy.logwarn ('(%s) SetPosition_callback req=%s' % (self.name, req))
         self.ss.set_pos_vel(self._CountFromUnits(req.velocity))
         self.SetState(req.position, req.velocity, usecached=True)
         rv = req
@@ -304,14 +304,17 @@ class RosSimpleStep:
         rv = SrvJointStateResponse()
         if self.initialized:
 #            if self.velLast * req.velocity <= 0.0:
-            if (req.velocity>=0):
-                direction = POSITIVE
-            else:
-                direction = NEGATIVE
+            if (req.velocity>0):
+                self.direction = POSITIVE
+            elif (req.velocity<0):
+                self.direction = NEGATIVE
+            else: # (req.velocity==0):
+                self.direction = 1-self.direction
 
-            #rospy.logwarn('dir=%d, vel=%d' % (direction, self._CountFromUnits(N.abs(req.velocity))))
-            self.ss.set_vel_and_dir(self._CountFromUnits(N.abs(req.velocity)), direction)
-            #self.ss.set_dir_setpt (direction)
+            vel = self._CountFromUnits(N.abs(req.velocity))
+            #rospy.logwarn('(%s) ss.set_vel_and_dir(vel=%d, dir=%d)' % (self.name, vel, self.direction))
+            self.ss.set_vel_and_dir(vel, self.direction)
+            #self.ss.set_dir_setpt (self.direction)
             #self.ss.set_vel_setpt(self._CountFromUnits(N.abs(req.velocity)))
             self.velLast = req.velocity
             rv.header = req.header
@@ -331,7 +334,7 @@ class RosSimpleStep:
     ##############################
     #
     def SetState(self, pos, vel, usecached=False):
-        rospy.logwarn ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
+        #rospy.logwarn ('(%s) SetState pos=%s, vel=%s' % (self.name, pos,vel))
         # Convert message radians to node units.
         if self.units=='radians':
             try:
@@ -370,10 +373,13 @@ class RosSimpleStep:
         if N.sign(velCmd) == N.sign(self.velLast):
             bDirChange = False
             
-        if N.sign(velCmd) < 0.0:
-            direction = 1
-        else:
-            direction = 0
+        if (velCmd>0):
+            self.direction = POSITIVE
+        elif (velCmd<0):
+            self.direction = NEGATIVE
+        else: # (velCmd==0):
+            self.direction = 1-self.direction
+
         
         velCmd = N.abs(velCmd)
         
@@ -385,12 +391,12 @@ class RosSimpleStep:
             #rospy.loginfo("(%s) posCmd=%s", self.name, posCmd)
         else:                                        
             # Send command to motor.
-            #rospy.loginfo ("(%s) rss posCmd=%s", self.name, posCmd)#, posError=%s, vel=%s, dir=%s", posCmd, self.posError, velCmd, direction)
+            #rospy.loginfo ("(%s) rss posCmd=%s", self.name, posCmd)#, posError=%s, vel=%s, dir=%s", posCmd, self.posError, velCmd, self.direction)
             #if bDirChange: 
-            #    self.ss.set_dir_setpt(direction)
+            #    self.ss.set_dir_setpt(self.direction)
             #self.ss.set_vel_setpt(self.velDes)
-            rospy.logwarn("(%s) velCmd=%s, dir=%s", self.name, velCmd, direction)
-            self.ss.set_vel_and_dir(self._CountFromUnits(velCmd), direction)
+            rospy.logwarn("(%s) velCmd=%s, dir=%s", self.name, velCmd, self.direction)
+            self.ss.set_vel_and_dir(self._CountFromUnits(velCmd), self.direction)
             
             
         #rospy.loginfo('(%s) %0.3f Hz', self.name, 1.0/self.dt)
@@ -398,7 +404,7 @@ class RosSimpleStep:
         self.timeLast = self.timeCur
         self.velLast = velCmd
         self.iStep = self.iStep+1
-        #rospy.loginfo("(%s) cb: Set velDes=%s, dir=%s", self.name, self.velDes, direction)
+        #rospy.loginfo("(%s) cb: Set velDes=%s, dir=%s", self.name, self.velDes, self.direction)
                     
         
                 
